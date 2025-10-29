@@ -63,7 +63,7 @@ function _swapExactInputSingle(
 
 If we are using an implementation of the default [V4Router](https://github.com/Uniswap/v4-periphery/blob/main/src/V4Router.sol) every action will include the `hookData` parameter.
 
-The issue here is anyone could call the `_swapExactInputSingle` function and include any `hookData` they want. And this would enable them setting this `hookData` parameter to any address they want, impersonating any address they want.
+The issue here is anyone could call the `_swapExactInputSingle` function and include any `hookData` they want. And this would enable them setting this `hookData` parameter to any address they want, impersonating whitelisted addresses.
 
 ## Trusted routers
 
