@@ -1,0 +1,29 @@
+# Rehypothecation
+
+In DeFi, rehypothecation means a protocol or user reuses collateral that's already locked or staked somewhere else, effectively stacking leverage on top of the same underlying asset.
+
+For example:
+
+1. You deposit ETH into Lido and receive stETH (a liquid staking token).
+
+2. You use that stETH as collateral on Aave to borrow USDC.
+
+3. Someone else might take that USDC, buy more ETH, stake it again, mint more stETH…
+
+## Rehypothecation in Uniswap v4
+
+Uniswap v4 hooks enable a form of rehypothecation by allowing liquidity providers to earn additional yield on their deposited tokens without compromising the pool's functionality.
+
+**How it works:**
+
+1. **Liquidity Deposit**: When users add liquidity to a pool, the hook can intercept the tokens using `beforeAddLiquidity` and `afterAddLiquidity` callbacks.
+
+2. **External Deployment**: The hook automatically deposits these tokens into external yield-generating protocols (like lending platforms, staking contracts, or other DeFi protocols).
+
+3. **Swap Execution**: Before each swap, the hook uses `beforeSwap` to withdraw tokens from the external protocol, allowing the swap to execute normally.
+
+4. **Re-deposit**: After the swap completes, `afterSwap` re-deposits the tokens back into the yield-generating protocol.
+
+This creates a seamless experience where LPs earn both trading fees from Uniswap and additional yield from external protocols, while maintaining full liquidity for trading.
+
+WIP.

@@ -1,0 +1,19 @@
+# Oracles
+
+Uniswap v3 introduced built-in oracles to get the price of a token pair.
+This meant that every trade was saving price information that could then be used to compute the time-weighted average price (TWAP) of the token pair.
+While this was a great feature, it added extra complexity that cost a lot of gas.
+
+Uniswap v4 removed built-in oracles, so we would need some periphery contract to query the pool, save the data in that other contract, and then use it to get the price of the token pair.
+However, this approach requires the periphery contract to be called by some router or other contract, leaving the possibility of malicious actors manipulating calls or missing critical price updates.
+
+Hooks can help us implement an internal pool oracle that is more efficient and gas-cheaper, while ensuring that it's called in every single swap that goes through the pool.
+
+## Benefits of Hook-Based Oracles
+
+-   **Gas Efficiency**: No need for external contract calls
+-   **Guaranteed Updates**: Every swap automatically updates the oracle
+-   **Security**: No external manipulation possible
+-   **Flexibility**: Implement your own price calculation methods
+
+WIP.
