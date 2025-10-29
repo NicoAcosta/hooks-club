@@ -1,0 +1,40 @@
+# Transient Storage
+
+Let's say that we are implementing that we want to reuse some data between two or more hooks in one same transaction.
+
+For example, we want to reuse the same data between the `beforeSwap` and `afterSwap`.
+
+We could use a global variable but this has two main issues:
+
+-   It is not gas efficient (saving to persistent storage is the most expensive operation in the blockchain)
+-   It is not secure (it might be vulnerable to reentrancy attacks)
+
+## What is transient storage?
+
+Transient storage is a feature that allows us to store data in memory that is only valid for the current transaction.
+
+It doesn't persist across transactions, it is not visible to other contracts and it is much cheaper to use than persistent storage.
+
+[EIP-1153](https://eips.ethereum.org/EIPS/eip-1153) was the proposal to implement it in the EVM. It was included in the [Cancun](https://ethereum.org/en/developers/docs/networks/cancun/) hard fork.
+
+Solidity 0.8.24 was the first version to support transient storage with inline assembly and `tload` and `tstore` instructions.
+And since [0.8.28](https://docs.soliditylang.org/en/v0.8.30/contracts.html#transient-storage) it is supported as storage state variables of value types.
+
+```solidity
+contract TransientStorageReentrancyGuard {
+    mapping(address => bool) sentGifts;
+    bool transient locked;
+
+    modifier nonReentrant {
+        require(!locked, "Reentrancy attempt");
+        locked = true;
+        _;
+        locked = false;
+    }
+```
+
+## How can we leverage it?
+
+We can use transient storage to store the data between different hooks.
+
+WIP...

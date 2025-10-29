@@ -1,0 +1,127 @@
+# Compliance / Whitelist
+
+As DeFi and TradFi become more interconnected, compliance is becoming increasingly important. Real world assets (RWA) are currently a hot topic and are expected to become even more significant in the future.
+
+To comply with regulations, exchanges and protocols frequently need ways to whitelist or blacklist addresses. Many tokenization licenses also don't allow secondary market permissionless trading.
+
+For these and many other reasons, implementing a permissioned (and compliant) trading system is often necessary.
+
+This is one of the simplest and most practical implementations of hooks, perfect for understanding how to add access controls to your pools.
+
+## High Level Overview
+
+We'll implement whitelist hooks that enable us to control who can provide liquidity (LPs) and who can swap (traders).
+
+For this example, we'll be querying external whitelist contracts that are responsible for checking if an address is whitelisted or not.
+
+Of course, this could be handled by a single contract or even internally within the hooks contract. We could also take a whitelist or blacklist approach or any other design decision.
+
+We'll be using [BaseHook](https://github.com/Uniswap/v4-periphery/blob/main/src/utils/BaseHook.sol) from the Uniswap v4 periphery repository to implement the hooks.
+
+We'll implement both `beforeAddLiquidity` and `beforeSwap` hooks to control access at the right moments.
+
+## Implementation
+
+Let's start by setting up the whitelist contracts' interface, which we'll use to query permissions.
+
+### `IWhitelist` Interface
+
+We'll start by setting up the whitelist interface. This is a simple interface that checks if an address is whitelisted or not.
+
+```solidity
+interface IWhitelist {
+    function isWhitelisted(address account) external view returns (bool);
+}
+```
+
+Now let's set up our hooks contract with both whitelists (LPs and traders):
+
+```solidity
+contract WhitelistedHooks {
+    IWhitelist public immutable lpsWhitelist;
+    IWhitelist public immutable tradersWhitelist;
+
+    constructor(address _lpsWhitelist, address _tradersWhitelist) {
+        lpsWhitelist = IWhitelist(_lpsWhitelist);
+        tradersWhitelist = IWhitelist(_tradersWhitelist);
+    }
+}
+```
+
+We'll also define custom errors for when an address is not whitelisted:
+
+```solidity
+error NotWhitelistedLP(address whitelist, address account);
+error NotWhitelistedTrader(address whitelist, address account);
+```
+
+### `BaseHook` Implementation
+
+Now we'll implement the `BaseHook` contract and override the `getHookPermissions` function to specify which hooks we want to use:
+
+```solidity
+contract WhitelistedHooks is BaseHook {
+	function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
+    	return (Hooks.Permissions({
+			beforeInitialize: false,
+      		afterInitialize: false,
+			beforeAddLiquidity: true,
+			beforeRemoveLiquidity: false,
+			afterAddLiquidity: false,
+			afterRemoveLiquidity: false,
+			beforeSwap: true,
+			afterSwap: false,
+			beforeDonate: false,
+			afterDonate: false,
+			beforeSwapReturnDelta: false,
+			afterSwapReturnDelta: false,
+			afterAddLiquidityReturnDelta: false,
+			afterRemoveLiquidityReturnDelta: false
+		}));
+  }
+}
+```
+
+### `beforeAddLiquidity` Hook
+
+Now we'll implement the `beforeAddLiquidity` hook. This hook is called before liquidity is added to the pool.
+
+From all the data we receive from the `PoolManager` call, we only need the `sender` address to check if it's whitelisted:
+
+```solidity
+function _beforeAddLiquidity(
+    address sender,
+    PoolKey calldata,
+    IPoolManager.ModifyLiquidityParams calldata,
+    bytes calldata
+) internal view override returns (bytes4) {
+    if (!lpsWhitelist.isWhitelisted(sender)) revert NotWhitelistedLP(address(lpsWhitelist), sender);
+
+    return this.beforeAddLiquidity.selector;
+}
+```
+
+### `beforeSwap` Hook
+
+Now we'll implement the `beforeSwap` hook. This hook is called before a swap is executed.
+
+We'll also use the `sender` address to check if it's whitelisted:
+
+```solidity
+function _beforeSwap(
+    address sender,
+    PoolKey calldata,
+    SwapParams calldata,
+    bytes calldata
+) internal view override returns (bytes4, BeforeSwapDelta, uint24) {
+    if (!tradersWhitelist.isWhitelisted(sender)) revert NotWhitelistedTrader(address(tradersWhitelist), sender);
+
+    return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+}
+```
+
+## Important Consideration: Sender Address
+
+In most cases, the `sender` address will be a router contract address and not the actual end user. This means you'll need to implement additional logic to identify the real user if you want to whitelist based on end-user addresses rather than router contracts.
+
+Check the [Sender](/technical-reference/considerations/sender) section for more details on how to handle this properly.

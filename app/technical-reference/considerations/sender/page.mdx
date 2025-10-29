@@ -1,0 +1,119 @@
+# Sender
+
+Several hooks receive the `sender` address as a parameter.
+
+This address is the address that originally called the `PoolManager` which triggered the hook execution.
+
+For example, some address calls `PoolManager`'s `swap` or `modifyLiquidity` function for some pool.
+If that pool's key includes a hooks contract address and its address indicates that the hooks contract implements the `beforeSwap` or `beforeAddLiquidity` function, the `PoolManager` will call the hooks contract's `beforeSwap` or `beforeAddLiquidity` function and the `sender` parameter will be the address that originally called the `PoolManager`'s `swap` or `modifyLiquidity` function.
+
+The key point here is most calls to the `PoolManager` will come from some router periphery contract like [V4Router](https://github.com/Uniswap/v4-periphery/blob/main/src/V4Router.sol). So the `sender` will be the address of that router contract and not the address of the user (EOA or smart account) or smart contract.
+
+In many cases, our hooks' logic will depend on the actual address that is interacting with our contracts.
+For example, if we want to allow only whitelisted addresses to swap or give some trading benefits to some addresses (like better deltas or lower fees), we will need a way to identify the actual address that is interacting with our contracts and not the router contract.
+
+How can we do it?
+
+## Using `hookData`
+
+Every hook function receives a `hookData` parameter. This parameter is a bytes array that can be used to pass any additional data to the hook function.
+This is a powerful feature that can be used for our hooks' logic.
+
+As `hookData` is a bytes array, we need to encode and decode any data we want to pass to the hook function.
+
+For this example, we will be modifying the Compliance / Whitelist example to include the actual sender in the `hookData` parameter.
+
+## Hooks functions implementation
+
+In our hooks' implementation, we will decode the `hookData` parameter to get the actual sender.
+
+```solidity
+function _beforeSwap(
+    address sender, // The router that called the `PoolManager`
+    PoolKey calldata,
+    SwapParams calldata,
+    bytes calldata hookData // The actual sender encoded in the `hookData` parameter
+) external view override returns (bytes4, BeforeSwapDelta, uint24) {
+    address actualSender = abi.decode(hookData, (address));
+
+    if (!tradersWhitelist.isWhitelisted(actualSender)) revert NotWhitelistedTrader(address(tradersWhitelist), actualSender);
+
+    return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+}
+```
+
+## Router periphery contract
+
+Routers will include the hookData parameter when calling the `PoolManager`.
+
+```solidity
+/// @notice Parameters for a single-hop exact-input swap
+struct ExactInputSingleParams {
+    PoolKey poolKey;
+    bool zeroForOne;
+    uint128 amountIn;
+    uint128 amountOutMinimum;
+    bytes hookData;
+}
+
+function _swapExactInputSingle(
+	IV4Router.ExactInputSingleParams calldata params
+) private;
+```
+
+If we are using an implementation of the default [V4Router](https://github.com/Uniswap/v4-periphery/blob/main/src/V4Router.sol) every action will include the `hookData` parameter.
+
+The issue here is anyone could call the `_swapExactInputSingle` function and include any `hookData` they want. And this would enable them setting this `hookData` parameter to any address they want, impersonating any address they want.
+
+## Trusted routers
+
+To avoid this issue, we can create a trusted router contract that will not receive the `hookData` parameter from the caller, but will set it in its own implementation to the actual sender.
+
+```solidity
+/// @notice Parameters for a single-hop exact-input swap
+struct TrustedRouterExactInputSingleParams {
+    PoolKey poolKey;
+    bool zeroForOne;
+    uint128 amountIn;
+    uint128 amountOutMinimum;
+}
+
+function _trustedSwapExactInputSingle(
+	TrustedRouterExactInputSingleParams calldata params
+) private {
+	bytes memory _hookData = abi.encode(msg.sender);
+
+	IV4Router.ExactInputSingleParams memory _params = IV4Router.ExactInputSingleParams({
+		poolKey: params.poolKey,
+		zeroForOne: params.zeroForOne,
+		amountIn: params.amountIn,
+		amountOutMinimum: params.amountOutMinimum,
+		hookData: _hookData
+	});
+
+	_swapExactInputSingle(_params);
+}
+```
+
+And the hooks' implementation will check if check if the sender is the trusted router contract before decoding the `hookData` parameter.
+
+```solidity
+address public immutable trustedRouter;
+
+constructor(address _trustedRouter) {
+    trustedRouter = _trustedRouter;
+}
+
+function _beforeSwap(
+    address sender,
+    PoolKey calldata,
+    SwapParams calldata,
+    bytes calldata hookData
+) external view override returns (bytes4, BeforeSwapDelta, uint24) {
+    if (sender != address(trustedRouter)) revert NotTrustedRouter(address(trustedRouter));
+
+    return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+}
+```
+
+Of course, we could have more than one trusted router contract and we could use a mapping to store the trusted routers' addresses.

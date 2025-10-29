@@ -1,0 +1,37 @@
+# PoolId
+
+```solidity
+type PoolId is bytes32;
+```
+
+The `PoolId` is a unique identifier for a pool. It is a 32-byte hash of the pool's key.
+You can compute the `PoolId` from the pool key using the `PoolIdLibrary` library function `toId`.
+
+```solidity
+/// @notice Library for computing the ID of a pool
+library PoolIdLibrary {
+    /// @notice Returns value equal to keccak256(abi.encode(poolKey))
+    function toId(PoolKey memory poolKey) internal pure returns (PoolId poolId) {
+        assembly ("memory-safe") {
+            // 0xa0 represents the total size of the poolKey struct (5 slots of 32 bytes)
+            poolId := keccak256(poolKey, 0xa0)
+        }
+    }
+}
+```
+
+Example:
+
+```solidity
+using PoolIdLibrary for PoolKey;
+
+PoolKey memory poolKey = PoolKey({
+    currency0: Currency.wrap(someAddress0),
+    currency1: Currency.wrap(someAddress1),
+    fee: someFee,
+    tickSpacing: someTickSpacing,
+    hooks: someHookContractAddress
+});
+
+PoolId poolId = poolKey.toId(); // This will be a 32-byte hash of the pool key
+```

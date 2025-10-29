@@ -1,0 +1,18 @@
+# beforeSwap
+
+This hook function is called before a swap is executed.
+
+```solidity
+function beforeSwap(
+    address sender,
+    PoolKey calldata key,
+    SwapParams calldata params,
+    bytes calldata hookData
+)
+    external
+    returns (
+        bytes4 functionSelector,
+        BeforeSwapDelta delta,
+        uint24 fee
+    );
+```

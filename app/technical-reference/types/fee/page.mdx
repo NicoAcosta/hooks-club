@@ -1,0 +1,111 @@
+# Fee
+
+The `fee` is a uint24 that represents the pool swap fee.
+
+```solidity
+uint24 fee;
+```
+
+The `fee` is capped at 1,000,000. If the first bit is 1, the pool has a dynamic fee.
+
+```solidity
+uint24 fee = 1000000; // 10% fee
+```
+
+## LPFeeLibrary
+
+We have the `LPFeeLibrary` that includes some useful flags and functions to abstract some comparisons and checks.
+
+### Flags
+
+```solidity
+/// @notice An lp fee of exactly 0b1000000... signals a dynamic fee pool. This isn't a valid static fee as it is > MAX_LP_FEE
+uint24 public constant DYNAMIC_FEE_FLAG = 0x800000;
+
+/// @notice the second bit of the fee returned by beforeSwap is used to signal if the stored LP fee should be overridden in this swap
+// only dynamic-fee pools can return a fee via the beforeSwap hook
+uint24 public constant OVERRIDE_FEE_FLAG = 0x400000;
+
+/// @notice mask to remove the override fee flag from a fee returned by the beforeSwaphook
+uint24 public constant REMOVE_OVERRIDE_MASK = 0xBFFFFF;
+
+/// @notice the lp fee is represented in hundredths of a bip, so the max is 100%
+uint24 public constant MAX_LP_FEE = 1000000;
+```
+
+We can use `DYNAMIC_FEE_FLAG` when referring to a pool that implements a dynamic fee.
+
+```solidity
+PoolKey memory poolKey = PoolKey({
+    currency0: Currency.wrap(someAddress0),
+    currency1: Currency.wrap(someAddress1),
+    fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
+    tickSpacing: 1,
+    hooks: someHookContractAddress
+});
+```
+
+We can use `OVERRIDE_FEE_FLAG` on dynamic fee pools to override the fee for a specific swap within the `beforeSwap` hook.
+
+```solidity
+import { LPFeeLibrary } from "uniswap/v4-core/.../LPFeeLibrary.sol";
+
+function beforeSwap(
+    address sender,
+    PoolKey calldata key,
+    SwapParams calldata params,
+    bytes calldata hookData
+)
+    external
+    override
+    returns (bytes4, BeforeSwapDelta memory delta, uint24)
+{
+    bytes4 selector = this.beforeSwap.selector;
+
+    uint24 someNewFee = 10000; // 1% fee
+
+    // set the OVERRIDE bit so `PoolManager` uses `someNewFee` for this swap
+    uint24 feeWithFlag = someNewFee | LPFeeLibrary.OVERRIDE_FEE_FLAG;
+
+    return (selector, delta, feeWithFlag);
+}
+```
+
+### Functions
+
+```solidity
+/// @notice returns true if a pool's LP fee signals that the pool has a dynamic fee
+/// @param self The fee to check
+/// @return bool True of the fee is dynamic
+function isDynamicFee(uint24 self) internal pure returns (bool);
+
+/// @notice returns true if an LP fee is valid, aka not above the maximum permitted fee
+/// @param self The fee to check
+/// @return bool True of the fee is valid
+function isValid(uint24 self) internal pure returns (bool);
+
+/// @notice validates whether an LP fee is larger than the maximum, and reverts if invalid
+/// @param self The fee to validate
+function validate(uint24 self) internal pure;
+
+/// @notice gets and validates the initial LP fee for a pool. Dynamic fee pools have an initial fee of 0.
+/// @dev if a dynamic fee pool wants a non-0 initial fee, it should call `updateDynamicLPFee` in the afterInitialize hook
+/// @param self The fee to get the initial LP from
+/// @return initialFee 0 if the fee is dynamic, otherwise the fee (if valid)
+function getInitialLPFee(uint24 self) internal pure returns (uint24);
+
+/// @notice returns true if the fee has the override flag set (2nd highest bit of the uint24)
+/// @param self The fee to check
+/// @return bool True of the fee has the override flag set
+function isOverride(uint24 self) internal pure returns (bool);
+
+/// @notice returns a fee with the override flag removed
+/// @param self The fee to remove the override flag from
+/// @return fee The fee without the override flag set
+function removeOverrideFlag(uint24 self) internal pure returns (uint24);
+
+/// @notice Removes the override flag and validates the fee (reverts if the fee is too large)
+/// @param self The fee to remove the override flag from, and then validate
+/// @return fee The fee without the override flag set (if valid)
+function removeOverrideFlagAndValidate(uint24 self) internal pure returns (uint24 fee);
+```

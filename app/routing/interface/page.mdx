@@ -1,0 +1,21 @@
+# Uniswap Interface
+
+[Uniswap interface](https://app.uniswap.org/) is managed by Uniswap Labs, and all the routing logic is handled by their team.
+
+At protocol level, users and contracts can choose which versions and pools (including those with hooks) they want to use when swapping. And being a permissionless protocol, anyone can create pools with any hooks contract.
+
+We must consider that hooks implementations can include bugs, vulnerabilities, or malicious code that could affect LPs and traders funds. Therefore, Uniswap Labs interface features a manual approval process for hooks contracts to be routed.
+
+The approval process is designed to ensure that only trusted hooks contracts are used in the Uniswap interface, protecting users and their funds from potential exploits or security breaches.
+
+Approval criteria might include security (audits) and traction (TVL).
+
+We can find a list of currenlty whitelisted hooks [here](https://support.uniswap.org/hc/en-us/articles/33829289869965-How-do-custom-hooks-work-in-the-Labs-interface).
+
+## Resources
+
+[How do custom hooks work in the Labs interface?](https://support.uniswap.org/hc/en-us/articles/33829289869965-How-do-custom-hooks-work-in-the-Labs-interface)
+
+[Self-Support Allowlisting and TVL-Setting for Hooks on Uniswap](https://www.notion.so/uniswaplabs/Self-Support-Allowlisting-and-TVL-Setting-for-Hooks-on-Uniswap-239c52b2548b80cc8b95c8fd32454bcf)
+
+[Uniswap Labs Routing Hook Intake Form](https://uniswaplabs.notion.site/1aec52b2548b80f78dbef8d2f0d7183e)
