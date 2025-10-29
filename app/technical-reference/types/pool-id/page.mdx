@@ -4,7 +4,7 @@
 type PoolId is bytes32;
 ```
 
-The `PoolId` is a unique identifier for a pool. It is a 32-byte hash of the pool's key.
+The `PoolId` is a unique identifier for a pool. It is a 32-byte hash of the [PoolKey](./pool-key/).
 You can compute the `PoolId` from the pool key using the `PoolIdLibrary` library function `toId`.
 
 ```solidity
