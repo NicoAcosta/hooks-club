@@ -7,12 +7,17 @@ import 'nextra-theme-docs/style.css'
 const funnelDisplay = Funnel_Display({ weight: ['400', '500', '600', '700'], subsets: ['latin'] })
 const funnelSans = Funnel_Sans({ weight: ['400', '500', '600', '700'], subsets: ['latin'] })
  
-export const metadata = {
-  title: 'Uniswap v4 Hooks',
-  description: 'Documentation for Uniswap v4 Hooks',
-  icons: {
-    icon: '/favicon.svg',
-  },
+export async function generateMetadata({ params }) {
+  return {
+    title: {
+      template: '%s | hooks.club',
+      default: 'hooks.club',
+    },
+    description: 'Documentation for Uniswap v4 Hooks',
+    icons: {
+      icon: '/favicon.svg',
+    },
+  }
 }
  
 const navbar = (
